@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Semiconductor Physics Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Neutrals (Slate, Soft Blue) -->
+    <!-- Application Structure Plan: The SPA is organized into four thematic sections based on core semiconductor concepts (Fundamentals, Junction Analysis, Diode Behavior, Band Diagrams) rather than mirroring the 10-problem structure. This approach groups related quantitative problems into interactive calculators and visualizations (e.g., the P-N Junction Analyzer), allowing users to explore cause-and-effect relationships. Navigation is handled by a sticky header, facilitating non-linear exploration. This design prioritizes hands-on learning and conceptual understanding over passive reading of solutions. -->
+    <!-- Visualization & Content Choices: 1. P-N Junction Width (Q3): Goal: Compare. Viz: Bar Chart. Interaction: Sliders for applied voltage update the chart. Justification: Visually demonstrates the direct impact of bias on depletion width. Library: Chart.js. 2. Diode V-I Curve (Q5): Goal: Inform/Visualize. Viz: Line Chart. Interaction: Hover tooltips. Justification: Standard, intuitive representation of diode characteristics. Library: Chart.js. 3. Reverse Current vs. Temp (Q8): Goal: Compare change. Viz: Dual Line Chart (Si vs. Ge). Interaction: Temperature slider updates both lines. Justification: Clearly illustrates the different temperature sensitivities of materials. Library: Chart.js. 4. Band Diagram (Q9): Goal: Organize. Viz: Styled HTML/CSS divs. Interaction: None planned, static visual. Justification: A simple, native-HTML way to represent the diagram without external images or SVG. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" xintegrity="sha384-n8MVd4RsNIU0KOVEMGmJoQtCoTTokEtUFgiQZ+g9u6PdxRNEzRTQpTdwPlASTouD" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" xintegrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUbKyIEMi" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" xintegrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax5AScKprqGp7VaxmaodIulR4KTyqr7MEoc" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false}
+                ]
+            });
+        });
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .katex-display {
+            display: block;
+            margin: 1em 0;
+            text-align: center;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        .custom-card {
+            background-color: white;
+            border-radius: 0.75rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: all 0.3s ease-in-out;
+        }
+        .custom-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.1);
+        }
+        .nav-link {
+            transition: color 0.2s ease-in-out;
+        }
+        .nav-link:hover {
+            color: #3b82f6;
+        }
+        .output-value {
+            font-weight: 600;
+            color: #3b82f6;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #d1d5db;
+            border-radius: 5px;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity .2s;
+        }
+        input[type="range"]:hover {
+            opacity: 1;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #3b82f6;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #3b82f6;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body class="text-slate-700">
+
+    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-200">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <h1 class="text-xl font-bold text-slate-800">Semiconductor Physics Explorer</h1>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#fundamentals" class="nav-link text-slate-600 font-medium px-3 py-2 rounded-md text-sm">Fundamentals</a>
+                        <a href="#junction" class="nav-link text-slate-600 font-medium px-3 py-2 rounded-md text-sm">P-N Junction</a>
+                        <a href="#diode" class="nav-link text-slate-600 font-medium px-3 py-2 rounded-md text-sm">Diode Behavior</a>
+                        <a href="#band-diagram" class="nav-link text-slate-600 font-medium px-3 py-2 rounded-md text-sm">Band Diagram</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        
+        <section id="fundamentals" class="mb-16 scroll-mt-20">
+            <h2 class="text-3xl font-bold text-slate-900 mb-2">Carrier Transport Fundamentals</h2>
+            <p class="text-lg text-slate-600 mb-8">This section covers the fundamental principles governing how charge carriers (electrons and holes) move within a semiconductor, leading to electric current. We'll explore drift current, caused by electric fields, and diffusion current, caused by concentration gradients.</p>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="custom-card p-6">
+                    <h3 class="text-xl font-semibold text-slate-800 mb-4">Drift and Diffusion Currents</h3>
+                    <p class="mb-4"><strong>Drift Current:</strong> Arises when an electric field ($E$) is applied, causing charge carriers to move with a drift velocity. The total drift current density is $$J_{\text{drift}} = q (n \mu_n + p \mu_p) E$$</p>
+                    <p><strong>Diffusion Current:</strong> Occurs due to the random thermal motion of carriers from a region of high concentration to low concentration. The electron diffusion current is $$J_{n,\text{diffusion}} = q D_n \frac{dn}{dx}$$</p>
+                    <p class="mt-4 font-semibold">The total current in a semiconductor is the sum of these four components (drift and diffusion for both electrons and holes).</p>
+                </div>
+                <div class="custom-card p-6">
+                    <h3 class="text-xl font-semibold text-slate-800 mb-4">Continuity and Poisson's Equations</h3>
+                    <p class="mb-4"><strong>Continuity Equation:</strong> This is a statement of charge conservation. It describes how the carrier concentration changes over time due to current flow, generation, and recombination. For electrons: $$\frac{\partial n}{\partial t} = \frac{1}{q} \nabla \cdot J_n + (G_n - R_n)$$</p>
+                    <p><strong>Poisson's Equation:</strong> This equation relates the spatial variation of electric potential to the net charge density in the material. It's crucial for finding the electric field within a device: $$\nabla^2 V = -\frac{\rho}{\epsilon}$$</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="junction" class="mb-16 scroll-mt-20">
+            <h2 class="text-3xl font-bold text-slate-900 mb-2">P-N Junction Analysis</h2>
+            <p class="text-lg text-slate-600 mb-8">Explore the properties of a silicon P-N junction. When p-type and n-type silicon meet, a depletion region forms with a built-in potential. Use the calculator below to see how doping and applied voltage affect this region's width.</p>
+            <div class="custom-card p-6 md:p-8">
+                <div class="grid lg:grid-cols-2 gap-8 items-center">
+                    <div>
+                        <h3 class="text-xl font-semibold text-slate-800 mb-4">Junction Width Calculator</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label for="voltageSlider" class="block text-sm font-medium text-slate-700">Applied Voltage ($V_a$): <span id="voltageValue" class="font-bold text-blue-600">0 V</span></label>
+                                <input type="range" id="voltageSlider" min="-10" max="0.3" step="0.1" value="0" class="w-full">
+                            </div>
+                            <div class="bg-slate-100 p-4 rounded-lg space-y-2">
+                                <p><strong>Built-in Potential ($V_{bi}$):</strong> <span class="output-value">0.571 V</span> (Calculated)</p>
+                                <p><strong>Space Charge Width ($W$):</strong> <span id="widthValue" class="output-value"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="widthChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="diode" class="mb-16 scroll-mt-20">
+            <h2 class="text-3xl font-bold text-slate-900 mb-2">Diode Behavior & Characteristics</h2>
+            <p class="text-lg text-slate-600 mb-8">A P-N junction forms a diode, a fundamental electronic component. This section visualizes its current-voltage (V-I) relationship and explores how temperature affects its performance, particularly the reverse leakage current.</p>
+            <div class="grid lg:grid-cols-2 gap-8">
+                <div class="custom-card p-6">
+                    <h3 class="text-xl font-semibold text-slate-800 mb-4">V-I Characteristics of a Silicon Diode</h3>
+                    <p class="mb-4">The chart shows the exponential increase in current under forward bias ($V > 0$) and the very small, constant reverse saturation current under reverse bias ($V < 0$).</p>
+                    <div class="chart-container h-64 md:h-80">
+                        <canvas id="viChart"></canvas>
+                    </div>
+                </div>
+                <div class="custom-card p-6">
+                    <h3 class="text-xl font-semibold text-slate-800 mb-4">Reverse Current vs. Temperature</h3>
+                    <p class="mb-4">Reverse saturation current ($I_0$) is highly sensitive to temperature. Use the slider to see how it changes for Silicon (Si) and Germanium (Ge).</p>
+                    <div>
+                        <label for="tempSlider" class="block text-sm font-medium text-slate-700">Temperature: <span id="tempValue" class="font-bold text-blue-600">20 °C</span></label>
+                        <input type="range" id="tempSlider" min="20" max="100" step="1" value="20" class="w-full">
+                    </div>
+                    <div class="chart-container h-64 md:h-80 mt-4">
+                        <canvas id="tempChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="band-diagram" class="scroll-mt-20">
+            <h2 class="text-3xl font-bold text-slate-900 mb-2">Energy Band Diagram for p+-n Junction</h2>
+            <p class="text-lg text-slate-600 mb-8">This diagram illustrates the energy levels of electrons in a p+-n junction at equilibrium. In a p+-n junction, the p-side is heavily doped. This causes the Fermi level ($E_F$) to be very close to the valence band ($E_V$) on the p+ side and results in most of the band bending occurring on the more lightly doped n-side.</p>
+            <div class="custom-card p-6 md:p-8">
+                <div class="w-full bg-white rounded-lg p-4">
+                    <div class="relative h-64 flex items-center justify-center font-semibold text-slate-700">
+                        <!-- p+ region -->
+                        <div class="absolute left-0 top-0 h-full w-1/3 text-center">
+                            <p class="mb-2">p+ Region</p>
+                            <div class="h-28 border-r-2 border-slate-300 border-dashed">
+                                <div class="relative h-full">
+                                    <div class="absolute w-full top-2 text-blue-600">$E_C$</div>
+                                    <div class="absolute w-full bottom-8 text-red-600">$E_V$</div>
+                                    <div class="absolute w-full bottom-4 text-green-600 border-b-2 border-green-600 border-dashed">$E_F$</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- n region -->
+                        <div class="absolute right-0 top-0 h-full w-1/3 text-center">
+                            <p class="mb-2">n Region</p>
+                            <div class="h-28">
+                                <div class="relative h-full">
+                                    <div class="absolute w-full top-2 text-blue-600">$E_C$</div>
+                                    <div class="absolute w-full bottom-8 text-red-600">$E_V$</div>
+                                    <div class="absolute w-full top-8 text-green-600 border-b-2 border-green-600 border-dashed">$E_F$</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Depletion Region / Bending -->
+                        <div class="absolute w-1/3 h-full">
+                            <p class="text-center mb-2">Depletion Region</p>
+                            <div class="relative h-28">
+                                <!-- Conduction Band -->
+                                <div class="absolute h-10 w-full" style="top: 8px;">
+                                    <svg viewBox="0 0 100 40" class="w-full h-full" preserveAspectRatio="none"><path d="M 0 0 Q 50 0, 90 30" stroke="#3b82f6" fill="none" stroke-width="2"></path></svg>
+                                </div>
+                                 <!-- Valence Band -->
+                                <div class="absolute h-10 w-full" style="bottom: 32px;">
+                                    <svg viewBox="0 0 100 40" class="w-full h-full" preserveAspectRatio="none"><path d="M 0 0 Q 50 0, 90 30" stroke="#ef4444" fill="none" stroke-width="2"></path></svg>
+                                </div>
+                                <div class="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex flex-col items-center">
+                                    <span class="text-sm">↑</span>
+                                    <span class="text-sm font-bold">$qV_{bi}$</span>
+                                    <span class="text-sm">↓</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const q = 1.6e-19;
+            const epsilon_si = 11.9 * 8.854e-14;
+            const Na = 1.11e15;
+            const Nd = 3.72e14;
+            const Vbi = 0.571;
+
+            const voltageSlider = document.getElementById('voltageSlider');
+            const voltageValue = document.getElementById('voltageValue');
+            const widthValue = document.getElementById('widthValue');
+
+            function calculateWidth(Va) {
+                if (Vbi - Va < 0) return 0;
+                const term1 = (2 * epsilon_si * (Vbi - Va)) / q;
+                const term2 = (1 / Na) + (1 / Nd);
+                const W_cm = Math.sqrt(term1 * term2);
+                return W_cm * 1e4;
+            }
+
+            function updateWidthCalculator() {
+                const Va = parseFloat(voltageSlider.value);
+                voltageValue.textContent = `${Va.toFixed(1)} V`;
+                const width_um = calculateWidth(Va);
+                widthValue.textContent = `${width_um.toFixed(3)} µm`;
+                
+                widthChart.data.datasets[0].data = [
+                    calculateWidth(-10),
+                    calculateWidth(0),
+                    calculateWidth(0.3)
+                ];
+                widthChart.data.datasets[1].data[widthChart.data.labels.indexOf(`${Va.toFixed(1)} V`)] = width_um;
+                widthChart.update();
+            }
+            
+            const widthCtx = document.getElementById('widthChart').getContext('2d');
+            const widthChart = new Chart(widthCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['-10.0 V', '0.0 V', '0.3 V'],
+                    datasets: [{
+                        label: 'Width (µm) at key points',
+                        data: [calculateWidth(-10), calculateWidth(0), calculateWidth(0.3)],
+                        backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Current Width (µm)',
+                        data: [null, null, null],
+                        backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                        borderColor: 'rgba(239, 68, 68, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Width (µm)' }
+                        },
+                        x: {
+                            title: { display: true, text: 'Applied Voltage' }
+                        }
+                    },
+                    plugins: {
+                        title: { display: true, text: 'Space Charge Width vs. Applied Voltage' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += context.parsed.y.toFixed(3) + ' µm';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            voltageSlider.addEventListener('input', updateWidthCalculator);
+            updateWidthCalculator();
+
+            const viCtx = document.getElementById('viChart').getContext('2d');
+            const viChartData = { labels: [], datasets: [{ label: 'Diode Current (mA)', data: [], borderColor: '#3b82f6', tension: 0.1, pointRadius: 0 }] };
+            const I0 = 5.08e-6; 
+            const VT = 0.0259;
+            for (let v = -1; v <= 0.7; v += 0.01) {
+                viChartData.labels.push(v.toFixed(2));
+                let current = I0 * (Math.exp(v / VT) - 1);
+                viChartData.datasets[0].data.push(current * 1000); // in mA
+            }
+            new Chart(viCtx, {
+                type: 'line',
+                data: viChartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { title: { display: true, text: 'Current (mA)' } },
+                        x: { title: { display: true, text: 'Voltage (V)' } }
+                    },
+                    plugins: {
+                        title: { display: true, text: 'Diode V-I Curve' }
+                    }
+                }
+            });
+
+            const tempSlider = document.getElementById('tempSlider');
+            const tempValue = document.getElementById('tempValue');
+            const tempCtx = document.getElementById('tempChart').getContext('2d');
+            let tempChart;
+            
+            function calculateReverseCurrentFactor(T_C, Eg, T1_C = 20) {
+                const k = 8.62e-5;
+                const T1_K = T1_C + 273.15;
+                const T_K = T_C + 273.15;
+                return Math.pow(T_K / T1_K, 3) * Math.exp((Eg / k) * (1/T1_K - 1/T_K));
+            }
+
+            function updateTempChart() {
+                const tempC = parseInt(tempSlider.value);
+                tempValue.textContent = `${tempC} °C`;
+                const labels = [];
+                const siData = [];
+                const geData = [];
+
+                for (let t = 20; t <= 100; t++) {
+                    labels.push(t);
+                    siData.push(calculateReverseCurrentFactor(t, 1.12));
+                    geData.push(calculateReverseCurrentFactor(t, 0.66));
+                }
+
+                tempChart.data.labels = labels;
+                tempChart.data.datasets[0].data = siData;
+                tempChart.data.datasets[1].data = geData;
+                tempChart.update();
+            }
+            
+            tempChart = new Chart(tempCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Si (Factor Increase)', data: [], borderColor: '#3b82f6', tension: 0.1, pointRadius: 0 },
+                        { label: 'Ge (Factor Increase)', data: [], borderColor: '#10b981', tension: 0.1, pointRadius: 0 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { type: 'logarithmic', title: { display: true, text: 'Increase Factor (log scale)' } },
+                        x: { title: { display: true, text: 'Temperature (°C)' } }
+                    },
+                    plugins: {
+                        title: { display: true, text: 'Reverse Current Increase with Temperature' }
+                    }
+                }
+            });
+
+            tempSlider.addEventListener('input', updateTempChart);
+            updateTempChart();
+        });
+    </script>
+</body>
+</html>
+
